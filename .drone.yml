@@ -1,0 +1,222 @@
+kind: pipeline
+type: kubernetes
+name: default
+
+image_pull_secrets:
+  - drone-regcred
+
+steps:
+  - name: greetings-dev
+    image: acrstaging.azurecr.io/iaclab/alpine:latest
+    commands:
+      - echo hello world from $PROFILE
+    environment:
+      PROFILE: Development
+    when:
+      branch:
+        develop
+      event:
+        exclude:
+          - pull_request
+
+  - name: greetings-stg
+    image: acrstaging.azurecr.io/iaclab/alpine:latest
+    commands:
+      - echo hello world from $PROFILE
+    environment:
+      PROFILE: Staging
+    when:
+      branch:
+        staging
+      event:
+        exclude:
+          - pull_request
+
+  - name: greetings-prd
+    image: acrstaging.azurecr.io/iaclab/alpine:latest
+    commands:
+      - echo hello world from $PROFILE
+    environment:
+      PROFILE: Production
+    when:
+      branch:
+        master
+      event:
+        exclude:
+          - pull_request
+
+  - name: test-dev
+    image: golang:1.10-alpine
+    commands:
+      - "go test"
+    when:
+      branch:
+        develop
+      event:
+        exclude:
+          - pull_request
+
+  - name: build-dev
+    image: golang:1.10-alpine
+    commands:
+      - "go build -o ./myapp"
+    when:
+      branch:
+        develop
+      event:
+        exclude:
+          - pull_request
+
+  - name: build-stg
+    image: golang:1.10-alpine
+    commands:
+      - "go build -o ./myapp"
+    when:
+      branch:
+        staging
+      event:
+        exclude:
+          - pull_request
+
+  - name: build-prd
+    image: golang:1.10-alpine
+    commands:
+      - "go build -o ./myapp"
+    when:
+      branch:
+        master
+      event:
+        exclude:
+          - pull_request
+
+  - name: publish-dev
+    image: plugins/docker
+    settings:
+      registry: acrstaging.azurecr.io
+      repo: "acrstaging.azurecr.io/helloworld"
+      tags: [ "${DRONE_COMMIT_SHA:0:7}","latest" ]
+      debug: true
+      username:
+        from_secret: docker-username
+      password:
+        from_secret: docker-password
+    when:
+      branch:
+        develop
+      event:
+        exclude:
+          - pull_request
+
+  - name: publish-stg
+    image: plugins/docker
+    settings:
+      registry: acrstaging.azurecr.io
+      repo: "acrstaging.azurecr.io/helloworld"
+      tags: [ "${DRONE_COMMIT_SHA:0:7}","latest" ]
+      debug: true
+      username:
+        from_secret: docker-username
+      password:
+        from_secret: docker-password
+    when:
+      branch:
+        staging
+      event:
+        exclude:
+          - pull_request
+
+  - name: publish-prd
+    image: plugins/docker
+    settings:
+      registry: acrstaging.azurecr.io
+      repo: "acrstaging.azurecr.io/helloworld"
+      tags: [ "${DRONE_COMMIT_SHA:0:7}","latest" ]
+      debug: true
+      username:
+        from_secret: docker-username
+      password:
+        from_secret: docker-password
+    when:
+      branch:
+        master
+      event:
+        exclude:
+          - pull_request
+
+  - name: deploy-dev
+    pull: always
+    image: acrstaging.azurecr.io/iaclab/pipe-helm:latest
+    settings:
+      file: dev.yaml
+    environment:
+      K8S_CONF:
+        from_secret: k8s-stg
+      ACR_USER:
+        from_secret: docker-username
+      ACR_PWD:
+        from_secret: docker-password
+    when:
+      branch:
+        develop
+      event:
+        exclude:
+          - pull_request
+
+  - name: deploy-stg
+    pull: always
+    image: acrstaging.azurecr.io/iaclab/pipe-helm:latest
+    settings:
+      file: stg.yaml
+    environment:
+      K8S_CONF:
+        from_secret: k8s-stg
+      ACR_USER:
+        from_secret: docker-username
+      ACR_PWD:
+        from_secret: docker-password
+    when:
+      branch:
+        staging
+      event:
+        exclude:
+          - pull_request
+
+  - name: deploy-prd
+    pull: always
+    image: acrstaging.azurecr.io/iaclab/pipe-helm:latest
+    settings:
+      file: prd.yaml
+    environment:
+      K8S_CONF:
+        from_secret: k8s-stg
+      ACR_USER:
+        from_secret: docker-username
+      ACR_PWD:
+        from_secret: docker-password
+    when:
+      branch:
+        master
+      event:
+        exclude:
+          - pull_request
+
+---
+kind: secret
+name: docker-username
+get:
+  path: drone-secrets
+  name: docker-username
+
+---
+kind: secret
+name: docker-password
+get:
+  path: drone-secrets
+  name: docker-password
+
+---
+kind: secret
+name: k8s-stg
+get:
+  path: k8s-stg
+  name: k8s-stg

@@ -1,0 +1,21 @@
+name: helloworld
+tag: <autotag>
+namespace: prd
+azureAccount: staging
+
+cpu: 0.2
+memory: 256M
+
+initialDelaySeconds: 120
+containerPort: 9090
+portProtocol: TCP
+
+env:
+  APP_NAME: 'helloworld-prd'
+  PY_ENV: 'production'
+
+lb:
+  type: azure/application-gateway
+  hosts:
+    - host: helloworld.iaclab.com
+      paths: ["/"]
